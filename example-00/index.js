@@ -45,6 +45,30 @@ async function trainModel(inputXs, outputYs) {
     return model;
 }
 
+async function predict(model, inputTensor) {
+    // Fazemos a previsão usando o modelo treinado
+    const prediction = model.predict(inputTensor);
+
+    /*
+    // Obtemos os valores de probabilidade para cada categoria
+    const predictedValues = prediction.dataSync();
+    
+    // Encontramos o índice da categoria com a maior probabilidade
+    const predictedIndex = predictedValues.indexOf(Math.max(...predictedValues));
+    
+    // Mapeamos o índice para o nome da categoria correspondente
+    const predictedCategory = labelsNomes[predictedIndex];
+    
+    //console.log(`Predição: ${predictedCategory} (Probabilidades: ${predictedValues})`);
+    return predictedCategory;
+    */
+
+    // Faz a predição (output) e retorna as probabilidades para cada categoria
+    const predArray = await prediction.array();
+    return predArray[0].map((prob, index) => ({ categoria: labelsNomes[index], probabilidade: prob }));   
+    
+}
+
 // Exemplo de pessoas para treino (cada pessoa com idade, cor e localização)
 // const pessoas = [
 //     { nome: "Erick", idade: 30, cor: "azul", localizacao: "São Paulo" },
@@ -81,4 +105,20 @@ const tensorLabels = [
 const inputXs = tf.tensor2d(tensorPessoasNormalizado)
 const outputYs = tf.tensor2d(tensorLabels)
 
-const model = trainModel(inputXs, outputYs);
+const model = await trainModel(inputXs, outputYs);
+
+const pessoa = {nome: 'zé', idade: 28, cor: 'verde', localizacao: 'Curitiba'};
+
+// idade normalizada + one-hot encoding
+// idade normalizada: 28 / 40 = 0.7
+// cor verde: [0, 0, 1]
+// localização Curitiba: [0, 0, 1]
+const tensorPessoa = tf.tensor2d([[0.2, 1, 0, 0, 1, 0, 0]]); 
+
+const predictions = await predict(model, tensorPessoa);
+const results = predictions
+    .sort((a, b) => b.probabilidade - a.probabilidade)
+    .map(pred => `${pred.categoria}: ${(pred.probabilidade * 100).toFixed(2)}%`)
+    .join('\n');
+
+console.log(results);
